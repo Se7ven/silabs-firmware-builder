@@ -11,7 +11,7 @@ gbl:
   baudrate: 460800
   fw_variant: no_flow
 
-c_defines:
+configuration:
   SL_STACK_SIZE: 2752
   SL_CPC_DRV_UART_VCOM_BAUDRATE: 460800
   SL_CPC_DRV_UART_VCOM_FLOW_CONTROL_TYPE: usartHwFlowControlNone
@@ -25,3 +25,6 @@ c_defines:
   SL_CPC_RX_BUFFER_MAX_COUNT: 15
   SL_CPC_TX_QUEUE_ITEM_MAX_COUNT: 15
   CIRCULAR_QUEUE_LEN_MAX: 16
+
+c_defines:
+  SL_CPC_DRV_UART_VCOM_TX_PORT: SL_GPIO_PORT_B
