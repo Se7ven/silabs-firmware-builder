@@ -100,8 +100,3 @@ filter:
     value: ["Multiprotocol"]
   - name: "Project Difficulty"
     value: ["Advanced"]
-
-ui_hints:
-  highlight:
-    - path: ./README-MP-RCP.md
-      focus: true
