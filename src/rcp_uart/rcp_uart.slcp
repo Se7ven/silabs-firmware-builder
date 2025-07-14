@@ -1,4 +1,4 @@
-project_name: rcp-uart-802154
+project_name: rcp_uart
 label: Multiprotocol (OpenThread+Zigbee) - RCP (UART)
 package: openthread
 description: >
