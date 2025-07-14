@@ -84,6 +84,10 @@ configuration:
     value: 16
   - name: SL_OPENTHREAD_STACK_TASK_MEM_SIZE
     value: 4608
+  - name: ENABLE_ENCRYPTION
+    value: false
+  - name: SL_CPC_ENDPOINT_FLAG_DISABLE_ENCRYPTION
+    value: true
 
 filter:
   - name: "Wireless Technology"
