@@ -88,6 +88,8 @@ configuration:
     value: false
   - name: SL_CPC_ENDPOINT_FLAG_DISABLE_ENCRYPTION
     value: true
+  - name: SL_CPC_SECURITY_ENABLED
+    value: false
 
 filter:
   - name: "Wireless Technology"
