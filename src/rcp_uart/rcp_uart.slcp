@@ -85,12 +85,6 @@ configuration:
   - name: SL_OPENTHREAD_STACK_TASK_MEM_SIZE
     value: 4608
 
-tag:
-  - prebuilt_demo
-
-readme:
-  - path: ./README-MP-RCP.md
-
 filter:
   - name: "Wireless Technology"
     value: ["Thread", "Zigbee"]
