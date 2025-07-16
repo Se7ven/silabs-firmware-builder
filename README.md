@@ -2,7 +2,7 @@
 
 This repository contains Dockerfiles and GitHub actions that build Silicon Labs firmware. It also hosts unofficial Zigbee Coordinator and Thread (OpenThread) firmware builds that community members can experiment with at your own risk.
 
-The firmware builder uses the Silicon Labs [Simplicity SDK)](https://github.com/SiliconLabs/simplicity_sdk) and proprietary Silicon Labs tools such as the Silicon Labs Configurator (slc) and the Simplicity Commander standalone utility. This is a fork of the [Silabs firmware builder by Nabu Casa](https://github.com/NabuCasa/silabs-firmware-builder), and forked from [darkxst Silicon Labs firmware builder](darkxst/silabs-firmware-builder) adding support for additional radio adapter hardware models and RCP Multi-PAN for new SDK. 
+The firmware builder uses the Silicon Labs [Simplicity SDK](https://github.com/SiliconLabs/simplicity_sdk) and proprietary Silicon Labs tools such as the Silicon Labs Configurator (slc) and the Simplicity Commander standalone utility. This is a fork of the [Silabs firmware builder by Nabu Casa](https://github.com/NabuCasa/silabs-firmware-builder), and forked from [darkxst Silicon Labs firmware builder](darkxst/silabs-firmware-builder) adding support for additional radio adapter hardware models and RCP Multi-PAN for new SDK. 
 
 Again, please note that the pre-compiled firmware builds hosted in this repository are both unofficial and experimental or cutting-edge releases with  minimal testing which may brick your radio adapter so that it requires manual recovery via a compatible debug probe adapter, however, the builds offered via the Web Flasher are the latest versions recommended by the community.
 
