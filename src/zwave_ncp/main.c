@@ -1,9 +1,9 @@
 /***************************************************************************//**
- * @file nc_efr32_wdog.h
- * @brief Legacy HAL Watchdog
+ * @file main.c
+ * @brief main() function.
  *******************************************************************************
  * # License
- * <b>Copyright 2022 Silicon Laboratories, Inc, www.silabs.com</b>
+ * <b>Copyright 2022 Silicon Laboratories Inc. www.silabs.com</b>
  *******************************************************************************
  *
  * The licensor of this software is Silicon Laboratories Inc. Your use of this
@@ -14,12 +14,15 @@
  * sections of the MSLA applicable to Source Code.
  *
  ******************************************************************************/
+#include "sl_system_init.h"
+#include "sl_system_kernel.h"
 
-#include <stdio.h>
-#include "em_cmu.h"
-#include "em_wdog.h"
-#include "em_rmu.h"
-#include "sl_component_catalog.h"
+int main(void)
+{
+  // Initialize Silicon Labs device, system, service(s) and protocol stack(s).
+  // Note that processing task(s) will be created by this call.
+  sl_system_init();
 
-void nc_enable_watchdog(void);
-void nc_poke_watchdog(void);
+  // Start the kernel. Task(s) created in app_init() will start running.
+  sl_system_kernel_start();
+}

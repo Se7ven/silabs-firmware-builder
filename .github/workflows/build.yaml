@@ -1,194 +1,209 @@
-name: Silicon Labs firmware build
+name: Build firmwares
 
 on:
+  pull_request:
+    paths-ignore:
+      - '.gitignore'
+      - 'README.md'
   push:
-    paths:
-      - Dockerfile
-      - .github/workflows/build.yaml
-      - .github/workflows/silabs-firmware-build.yaml
-      - EmberZNet/**
-      - OpenThreadRCP/**
-      - RCPMultiPAN/**
-    branches:
-      - main
-    tags:
-      - '*'
-  workflow_dispatch:
+    paths-ignore:
+      - '.gitignore'
+      - 'README.md'
+  release:
+    types:
+      - published
 
 env:
-  sdk_version: 4.4.5
+  REGISTRY: ghcr.io
 
 jobs:
+  run-pre-commit:
+    name: Run pre-commit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+      - name: Install pre-commit
+        run: |
+          pip install pre-commit
+          pre-commit install
+      - name: Run pre-commit
+        run: |
+          pre-commit run --show-diff-on-failure --color=always --all-files
+
   build-container:
     name: Create build container image
     runs-on: ubuntu-latest
     permissions:
       packages: write
-    outputs:
-      sdk_version: ${{ env.sdk_version }}
-      ot_version: 2.4.5.0
-      ezsp_version: 7.4.5.0
     steps:
-      - uses: actions/checkout@v3.3.0
+      - uses: actions/checkout@v4
       - name: Log in to the GitHub container registry
-        uses: docker/login-action@v2.1.0
+        uses: docker/login-action@v3
         with:
-            registry: ghcr.io
-            username: ${{ github.repository_owner }}
-            password: ${{ secrets.GITHUB_TOKEN }}
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Read repository information
+        id: read-repo-info
+        run: |
+          if [[ $GITHUB_EVENT_NAME == "pull_request" ]]; then
+            base_image=$(echo ${{ github.event.pull_request.base.repo.full_name }} | awk '{print tolower($0)}')
+            head_image=$(echo ${{ github.event.pull_request.head.repo.full_name }} | awk '{print tolower($0)}')
+          else
+            base_image=$(echo ${{ github.repository }} | awk '{print tolower($0)}')
+            head_image=$(echo ${{ github.repository }} | awk '{print tolower($0)}')
+          fi
+
+          tag_name=$(echo "${{ hashFiles('Dockerfile') }}" | cut -c-16)
+
+          # Default to building a new container under the original repo
+          image_name=$head_image
+          build_image=true
+
+          # Check if we can use the base image (Nabu Casa)
+          if docker manifest inspect ${{ env.REGISTRY }}/$base_image:$tag_name; then
+            image_name=$base_image
+            build_image=false
+          fi
+
+          # Check if we can use the head image (if this is a PR)
+          if [[ $base_image != $head_image ]]; then
+            if docker manifest inspect ${{ env.REGISTRY }}/$head_image:$tag_name; then
+              image_name=$head_image
+              build_image=false
+            fi
+          fi
+
+          if [[ $build_image == "true" && $GITHUB_EVENT_NAME == "pull_request" ]]; then
+            echo "Cannot build a new container within a PR. Please re-run this action after $head_image:$tag_name is built."
+            exit 1
+          fi
+
+          echo "build_image=$build_image" >> $GITHUB_OUTPUT
+          echo "tag_name=$tag_name" >> $GITHUB_OUTPUT
+          echo "image_name=$image_name" >> $GITHUB_OUTPUT
+          echo "container_name=${{ env.REGISTRY }}/$image_name:$tag_name" >> $GITHUB_OUTPUT
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2.2.1
+        uses: docker/setup-buildx-action@v3
+        if: steps.read-repo-info.outputs.build_image == 'true'
       - name: Build and Push
-        uses: docker/build-push-action@v5.1.0
+        uses: docker/build-push-action@v6
+        if: steps.read-repo-info.outputs.build_image == 'true'
         with:
           context: .
           file: Dockerfile
-          tags: ghcr.io/${{ github.repository }}:${{ env.sdk_version }}
-          cache-from: ghcr.io/${{ github.repository }}:cache-${{ env.sdk_version }}
-          cache-to: ghcr.io/${{ github.repository }}:cache-${{ env.sdk_version }}
+          tags: ${{ env.REGISTRY }}/${{ steps.read-repo-info.outputs.image_name }}:${{ steps.read-repo-info.outputs.tag_name }}
+          cache-from: ${{ env.REGISTRY }}/${{ steps.read-repo-info.outputs.image_name }}:cache-${{ steps.read-repo-info.outputs.tag_name }}
+          cache-to: ${{ env.REGISTRY }}/${{ steps.read-repo-info.outputs.image_name }}:cache-${{ steps.read-repo-info.outputs.tag_name }}
           push: true
-          build-args:
-            "GECKO_SDK_VERSION=v${{ env.sdk_version }}"
+    outputs:
+      tag_name: ${{ steps.read-repo-info.outputs.tag_name }}
+      image_name: ${{ steps.read-repo-info.outputs.image_name }}
+      container_name: ${{ steps.read-repo-info.outputs.container_name }}
 
-  build-matrix:
+
+  list-manifests:
+    name: List firmware manifests
     runs-on: ubuntu-latest
     outputs:
-      ncp_matrix: ${{ steps.process.outputs.ncp_matrix }}
-      rcp_matrix: ${{ steps.process.outputs.rcp_matrix }}
-      ot_matrix: ${{ steps.process.outputs.ot_matrix }}
-      targets: ${{ steps.process.outputs.targets }}
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      - uses: actions/checkout@v3
-      - name: Process manifests
-        id: process
-        uses: ./.github/actions/manifest
-
-  ezsp-firmware-build:
-    name: EmberZNet NCP
-    needs: [build-container, build-matrix]
-    strategy:
-      matrix:
-        target: ${{ fromJson(needs.build-matrix.outputs.targets) }}
-        baudrate: [115200, 230400]
-        include: ${{ fromJson(needs.build-matrix.outputs.ncp_matrix) }}
-        exclude:
-          - target: yellow
-            baudrate: 230400
-          - target: skyconnect
-            baudrate: 230400
-    uses: ./.github/workflows/silabs-firmware-build.yaml
-    with:
-      firmware_name: ncp-uart-hw-v${{ needs.build-container.outputs.ezsp_version}}-${{ matrix.target }}-${{ matrix.baudrate }}
-      project_file: "/gecko_sdk/protocol/zigbee/app/ncp/sample-app/ncp-uart-hw/ncp-uart-hw.slcp"
-      project_name: "ncp-uart-hw"
-      device: ${{ matrix.device }}
-      components: ${{ matrix.components }}
-      configuration: ${{ matrix.configuration }}
-      patchpath: "EmberZNet/${{ matrix.name }}"
-      slcp_yaml_changes: ${{ matrix.slcp_yaml_changes }}
-      extra_c_defs: ${{ matrix.extra_c_defs }}
-      sdk_version: ${{ needs.build-container.outputs.sdk_version}}
-      metadata_fw_type: "ncp-uart-hw"
-      baudrate: ${{ matrix.baudrate }}
-      metadata_extra: "{ \"ezsp_version\": \"${{ needs.build-container.outputs.ezsp_version}}\" }"
-
-  rcp-multi-pan-firmware-build:
-    name: RCP Multi-PAN
-    needs: [build-container, build-matrix]
-    strategy:
-      matrix:
-        target: ${{ fromJson(needs.build-matrix.outputs.targets) }}
-        baudrate: [230400, 460800]
-        include: ${{ fromJson(needs.build-matrix.outputs.rcp_matrix) }}
-        exclude:
-          - target: yellow
-            baudrate: 230400
-          - target: skyconnect
-            baudrate: 230400
-          - target: elelabs-elx0x3
-            baudrate: 230400
-          - target: zb-gw04-1v2
-            baudrate: 460800
-    uses: ./.github/workflows/silabs-firmware-build.yaml
-    with:
-      firmware_name: rcp-uart-802154-v${{ needs.build-container.outputs.sdk_version}}-${{ matrix.target }}-${{ matrix.baudrate }}
-      project_file: "/gecko_sdk/protocol/openthread/sample-apps/ot-ncp/rcp-uart-802154.slcp"
-      project_name: "rcp-uart-802154"
-      device: ${{ matrix.device }}
-      components: ${{ matrix.components }}
-      without_components: ${{ matrix.without_components }}
-      configuration: ${{ matrix.configuration }}
-      patchpath: "RCPMultiPAN/${{ matrix.name }}"
-      sdkpatchpath: "RCPMultiPAN/GeckoSDK"
-      slcp_yaml_changes: ${{ matrix.slcp_yaml_changes }}
-      extra_c_defs: ${{ matrix.extra_c_defs }}
-      sdk_version: ${{ needs.build-container.outputs.sdk_version}}
-      baudrate: ${{ matrix.baudrate }}
-      metadata_fw_type: "rcp-uart-802154"
-
-  ot-rcp-firmware-build:
-    name: OpenThread RCP
-    needs: [build-container, build-matrix]
-    strategy:
-      matrix:
-        target: ${{ fromJson(needs.build-matrix.outputs.targets) }}
-        baudrate: [230400, 460800]
-        include: ${{ fromJson(needs.build-matrix.outputs.ot_matrix) }}
-        exclude:
-          - target: yellow
-            baudrate: 230400
-          - target: skyconnect
-            baudrate: 230400
-          - target: elelabs-elx0x3
-            baudrate: 230400
-          - target: zb-gw04-1v2
-            baudrate: 460800
-    uses: ./.github/workflows/silabs-firmware-build.yaml
-    with:
-      firmware_name: ot-rcp-v${{ needs.build-container.outputs.ot_version}}-${{ matrix.target }}-${{ matrix.baudrate }}
-      project_file: "/gecko_sdk/protocol/openthread/sample-apps/ot-ncp/ot-rcp.slcp"
-      project_name: "ot-rcp"
-      device: ${{ matrix.device }}
-      components: ${{ matrix.components }}
-      configuration: ${{ matrix.configuration }}
-      patchpath: "OpenThreadRCP/${{ matrix.name }}"
-      sdkpatchpath: "OpenThreadRCP/GeckoSDK"
-      extra_c_defs: ${{ matrix.extra_c_defs }}
-      sdk_version: ${{ needs.build-container.outputs.sdk_version}}
-      metadata_fw_type: "ot-rcp"
-      baudrate: ${{ matrix.baudrate }}
-      metadata_extra: "{ \"ot_rcp_version\": \"SL-OPENTHREAD/2.4.5.0_GitHub-797150858\" }"
-
-  collect_artifacts:
-    name: download and publish all artifacts
-    runs-on: ubuntu-latest
-    needs: [build-matrix, ezsp-firmware-build, rcp-multi-pan-firmware-build, ot-rcp-firmware-build]
-    steps:
-      - uses: actions/checkout@v3.3.0
-      - uses: actions/download-artifact@v3
-        with:
-          path: firmware_builds
-      - name: Reorganise artifact structure
+      - uses: actions/checkout@v4
+      - id: set-matrix
         run: |
-          set -e
-          targets='${{ needs.build-matrix.outputs.targets }}'
-          targets="$(echo "$targets" | jq -r '.[]')"
+          echo "matrix=$(find manifests -type f \( -name "*.yaml" -o -name "*.yml" \) -not -path "*/nabucasa/*" -print | sort | jq -R -s -c 'split("\n")[:-1]')" >> $GITHUB_OUTPUT
 
-          for t in $targets; do
-                  mkdir -p $t
-                  find *cp-uart-*/ ot-rcp*/ -maxdepth 1 -type f -name "*$t*.gbl" -exec sh -c 'cp "$0" "$1/$(basename "$0")"' {} "$t" \;
+  build-firmwares:
+    name: Firmware builder
+    needs: [list-manifests, build-container]
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.build-container.outputs.container_name }}
+      options: --user root
+    strategy:
+      matrix:
+        manifest: ${{ fromJson(needs.list-manifests.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SDK extensions
+        run: |
+          # XXX: slc-cli does not actually work when the extensions aren't in the SDK!
+          for sdk in /*_sdk_*; do
+            slc signature trust --sdk "$sdk"
+
+            ln -s $PWD/gecko_sdk_extensions "$sdk"/extension
+
+            for ext in "$sdk"/extension/*/; do
+              slc signature trust --sdk "$sdk" --extension-path "$ext"
+            done
           done
 
-          find *cp-uart-*/ ot-rcp*/ -maxdepth 1 -type f -name "*zbdongle*.gbl" ! -name "*460*" | while read f
-          do
-              mkdir -p zb-gw04-1v1
-              new=$(basename $f | sed "s/zbdonglee/zb-gw04-1v1/")
-              cp $f zb-gw04-1v1/$new
+      - name: Build firmware
+        id: build-firmware
+        run: |
+          # Fix `fatal: detected dubious ownership in repository at`
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+          # Pass all SDKs as consecutive `--sdk ...` arguments
+          sdk_args=""
+          for sdk_dir in /*_sdk*; do
+            sdk_args="$sdk_args --sdk $sdk_dir"
           done
 
-          rm -rf *cp-uart-*/ ot-rcp*/
-        working-directory: firmware_builds
-      - uses: stefanzweifel/git-auto-commit-action@v4
+          # Pass all toolchains as consecutive `--toolchain ...` arguments
+          toolchain_args=""
+          for toolchain_dir in /opt/*arm-none-eabi*; do
+            toolchain_args="$toolchain_args --toolchain $toolchain_dir"
+          done
+
+          # Build it
+          python3 tools/build_project.py \
+            $sdk_args \
+            $toolchain_args \
+            --manifest "${{ matrix.manifest }}" \
+            --build-dir build \
+            --build-system makefile \
+            --output-dir outputs \
+            --output gbl \
+            --output hex \
+            --output out
+
+          # Get the basename of the GBL in `outputs`
+          output_basename=$(basename -- $(basename -- $(ls -1 outputs/*.gbl | head -n 1)) .gbl)
+          echo "output_basename=$output_basename" >> $GITHUB_OUTPUT
+
+      - name: Install node within container (act)
+        if: ${{ env.ACT }}
+        run: |
+          curl -fsSL https://deb.nodesource.com/nsolid_setup_deb.sh | bash -s 20
+          apt-get install -y nodejs
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
-          commit_message: Update firmware builds
-          file_pattern: firmware_builds/**.gbl
+          name: firmware-build-${{ steps.build-firmware.outputs.output_basename }}
+          path: outputs/*
+          compression-level: 9
+          if-no-files-found: error
+
+  release-assets:
+    name: Upload release assets
+    needs: [build-firmwares]
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all workflow artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+          pattern: firmware-build-*
+
+      - name: Upload artifacts
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*.gbl

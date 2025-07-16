@@ -1,9 +1,9 @@
 /***************************************************************************//**
- * @file nc_efr32_wdog.h
- * @brief Legacy HAL Watchdog
+ * @file app.c
+ * @brief Callbacks implementation and application specific code.
  *******************************************************************************
  * # License
- * <b>Copyright 2022 Silicon Laboratories, Inc, www.silabs.com</b>
+ * <b>Copyright 2021 Silicon Laboratories Inc. www.silabs.com</b>
  *******************************************************************************
  *
  * The licensor of this software is Silicon Laboratories Inc. Your use of this
@@ -15,11 +15,24 @@
  *
  ******************************************************************************/
 
-#include <stdio.h>
-#include "em_cmu.h"
-#include "em_wdog.h"
-#include "em_rmu.h"
-#include "sl_component_catalog.h"
+#include PLATFORM_HEADER
+#include "sl_zigbee.h"
 
-void nc_enable_watchdog(void);
-void nc_poke_watchdog(void);
+//----------------------
+// Implemented Callbacks
+
+/** @brief
+ *
+ * Application framework equivalent of ::sl_zigbee_radio_needs_calibrating_handler
+ */
+void sl_zigbee_af_radio_needs_calibrating_cb(void)
+{
+  sl_mac_calibrate_current_channel();
+}
+
+/** @brief Init
+ * Application init function
+ */
+void sl_zigbee_af_main_init_cb(void)
+{
+}
