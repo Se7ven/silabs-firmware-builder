@@ -2,7 +2,7 @@
 
 This repository contains Dockerfiles and GitHub actions that build Silicon Labs firmware. It also hosts unofficial Zigbee Coordinator and Thread (OpenThread) firmware builds that community members can experiment with at your own risk.
 
-The firmware builder uses the Silicon Labs [Gecko SDK (GSDK)](https://github.com/SiliconLabs/gecko_sdk) and proprietary Silicon Labs tools such as the Silicon Labs Configurator (slc) and the Simplicity Commander standalone utility. This is a fork of the [Silabs firmware builder by Nabu Casa](https://github.com/NabuCasa/silabs-firmware-builder), adding support for additional radio adapter hardware models.
+The firmware builder uses the Silicon Labs [Simplicity SDK)](https://github.com/SiliconLabs/simplicity_sdk) and proprietary Silicon Labs tools such as the Silicon Labs Configurator (slc) and the Simplicity Commander standalone utility. This is a fork of the [Silabs firmware builder by Nabu Casa](https://github.com/NabuCasa/silabs-firmware-builder), and forked from [darkxst Silicon Labs firmware builder](darkxst/silabs-firmware-builder) adding support for additional radio adapter hardware models and RCP Multi-PAN for new SDK. 
 
 Again, please note that the pre-compiled firmware builds hosted in this repository are both unofficial and experimental or cutting-edge releases with  minimal testing which may brick your radio adapter so that it requires manual recovery via a compatible debug probe adapter, however, the builds offered via the Web Flasher are the latest versions recommended by the community.
 
@@ -24,7 +24,7 @@ Three network protocol application firmware variants are available:
 
 * **EmberZNet NCP** = Zigbee NCP (Network Co-Processor) is used as a dedicated Zigbee Coordinator for Zigbee-only environments, for direct use with Zigbee2MQTT, Home Assistant's ZHA integration, other Zigpy based Zigbee Gateway implementations, or other Zigbee gateways/frameworks that support the EZSP (EmberZNet Serial Protocol) interface.
 * **OpenThread RCP** firmware (experimental) = This [Thread](https://en.wikipedia.org/wiki/Thread_(network_protocol)) RCP (Radio Co-Processor) is used directly as a dedicated Thread Border Router in Thread-only environments, used for [OpenThread Border Router add-on](https://github.com/home-assistant/addons/blob/master/openthread_border_router/DOCS.md) or wpantund.
-* **RCP Multi-PAN** (no longer recommended) = Multiprotocol firmware for concurrent communication over Zigbee and Thread via Home Assistant [SiliconLabs Multiprotocol add-on](https://github.com/home-assistant/addons/blob/master/silabs-multiprotocol/DOCS.md).
+* **RCP Multi-PAN** (experimental) = Multiprotocol firmware for concurrent communication over Zigbee and Thread via Home Assistant [SiliconLabs Multiprotocol add-on with EmberZNet protocol](https://github.com/Se7ven/silabs-multiprotocol-ember/blob/main/silabs-multiprotocol-ember/DOCS.md).
 
 **Note!** Beware that the RCP MultiPAN in multiprotocol mode is no longer recommended because running multi-protocol with multiple active networks on a single radio adapter has proven to not be stable when using Zigbee and Thread network protocols simultaneously on the same radio adapter, it also increases the complexity of software component dependencies needed, so if already using RCP Multi-PAN then it is highly recommended that you plan to migrate to separate dedicated radio adapters instead, (using Zigbee NCP and Thread RCP firmware respectively), even if using RCP MultiPAN on a single radio adapter dongle has been working fine for you so far.
 
@@ -46,11 +46,11 @@ You can install this HA add-on to keep your dongle up to date with latest the RC
 It can also be used for the initial conversion to MultiPan firmware, however you will need to disable ZHA or Zigbee2MQTT while you do this initial flash. You can then install and configure the Silabs Multiprotocol Add-on.
 
 ## Pre-Compiled Firmware
-Firmware builds can be found in the [firmware_builds](https://github.com/darkxst/silabs-firmware-builder/tree/main/firmware_builds) folder.
+Firmware builds can be found in the [releases page](https://github.com/Se7ven/silabs-firmware-builder/releases/tag/20250627).
 
-`ncp-uart-hw-` EmberZnet pure Zigbee  
-`rcp-uart-802154-` RCP MultiPan  
-`ot-rcp-` OpenThread Only  
+`_zigbee_ncp` EmberZnet pure Zigbee  
+`_rcp_uart_` RCP MultiPan  
+`_openthread_rcp_` OpenThread Only  
 
 ZBDongle-E and ZB-GW04 v1.1 do not support hardware flow control. Yellow, SkyConnect and ZB-GW04 v1.2 are built with hardware flow control. Various baudrates are available as listed at the end of the filename.
 
@@ -59,35 +59,7 @@ Use NabuCasa's [Universal-Silabs-Flasher](https://github.com/NabuCasa/universal-
 
 ## Building locally
 
-To build a firmware locally the build container can be reused. If you use VSCode then simply open the included devcontainer. Or you can manually start the
-container locally using Docker, with a build directory bind-mounted, e.g.
-
-```sh
-docker run --rm -it \
-  --user builder \
-  -v $(pwd)/build:/build \
-  ghcr.io/darkxst/silabs-firmware-builder:4.2.2
-```
-
-To generate a project, use `slc generate`. To replicate/debug build issues in
-an existing GitHub action, it is often helpful to just copy the command from
-the "Generate Firmware Project" step.
-
-```sh
-  slc generate \
-      --with="MGM210PA32JIA,simple_led:board_activity" \
-      --project-file="/gecko_sdk/protocol/openthread/sample-apps/ot-ncp/rcp-uart-802154.slcp" \
-      --export-destination=rcp-uart-802154-yellow \
-      --copy-proj-sources --new-project --force \
-      --configuration=""
-```
-
-Then build it using commands from the "Build Firmware" step:
-
-```sh
-cd rcp-uart-802154-yellow
-make -f rcp-uart-802154.Makefile release
-```
+To be defined soon.
 
 ## Support
 
