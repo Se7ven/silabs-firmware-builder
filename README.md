@@ -65,4 +65,4 @@ To be defined soon.
 
 If you would like to help support further development of my `Silabs firmware` projects consider buying me a coffee!
 
-<a href="https://www.buymeacoffee.com/darkxst" target="_blank"><img src="img/blue-button.png" alt="Buy Me A Coffee" height="41" width="174"></a>
+<a href="https://buymeacoffee.com/se7venmx" target="_blank"><img src="img/blue-button.png" alt="Buy Me A Coffee" height="41" width="174"></a>
