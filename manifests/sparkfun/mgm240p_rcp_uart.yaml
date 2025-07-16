@@ -1,6 +1,6 @@
 name: MGM240P Zigbee
 device: MGM240PB32VNA
-base_project: src/zigbee_ncp
+base_project: src/rcp_uart
 filename: "{manifest_name}_{ezsp_version}_{fw_variant}_{baudrate}"
 sdk: "simplicity_sdk:2025.6.0"
 toolchain: "12.2.1.20221205"
